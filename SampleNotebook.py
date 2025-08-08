@@ -23,7 +23,7 @@ df.show(truncate=False)
 from pyspark.sql.functions import col, trim, lower, regexp_replace
 
 # Step 1: Load CSV into DataFrame
-df = spark.read.option("header", True).csv("/FileStore/tables/dirty_employees-2.csv")
+df = spark.read.option("header", True).csv("/FileStore/tables/dirty_employees.csv")
 
 # Step 2: Show raw dirty data
 print("Raw Data:")
