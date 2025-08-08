@@ -1,6 +1,6 @@
 # Databricks notebook source
 # Sample data
-data = [("Raj", 24), ("priya", 30), ("Sara", 29)]
+data = [("Raj", 24), ("priya", 30), ("supra", 29)]
 
 # Create a DataFrame
 df = spark.createDataFrame(data, ["Name", "Age"])
