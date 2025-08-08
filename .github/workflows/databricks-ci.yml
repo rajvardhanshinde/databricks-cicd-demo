@@ -17,5 +17,5 @@ jobs:
         with:
           databricks-host: https://adb-1808066787890886.6.azuredatabricks.net
           databricks-token: ${{ secrets.DATABRICKS_TOKEN }}
-          notebook-path: /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
+          workspace-notebook-path: /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
           existing-cluster-id: 0808-100918-h03sh6sb
