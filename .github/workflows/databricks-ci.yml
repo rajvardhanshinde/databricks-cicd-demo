@@ -30,7 +30,7 @@ jobs:
             --language PYTHON \
             --format SOURCE \
             --overwrite \
-            notebooks/SampleNotebook.py \
+            /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook \
             /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
 
       - name: Run notebook on Databricks
