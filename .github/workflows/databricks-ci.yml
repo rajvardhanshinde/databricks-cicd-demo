@@ -27,11 +27,11 @@ jobs:
       - name: Upload latest SampleNotebook.py to Databricks
         run: |
           databricks workspace import \
-            --language PYTHON \
-            --format SOURCE \
-            --overwrite \
-            SampleNotebook \
-            /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
+          --language PYTHON \
+          --format SOURCE \
+          --overwrite \
+          SampleNotebook.py \
+          /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
 
       - name: Run notebook on Databricks
         uses: databricks/run-notebook@v0
