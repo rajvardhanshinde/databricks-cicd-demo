@@ -1,42 +1,8 @@
-name: CI to Databricks
+# Sample data
+data = [("Raj", 24), ("priya", 30), ("Sara", 29)]
 
-on:
-  push:
-    branches: [main]  # or your branch name
+# Create a DataFrame
+df = spark.createDataFrame(data, ["Name", "Age"])
 
-jobs:
-  deploy-and-run:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Databricks CLI
-        run: pip install databricks-cli
-
-      - name: Configure Databricks CLI
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: |
-          databricks configure --token <<EOF
-          https://adb-1808066787890886.6.azuredatabricks.net
-          $DATABRICKS_TOKEN
-          EOF
-
-      - name: Upload latest SampleNotebook.py to Databricks
-        run: |
-          databricks workspace import \
-            --language PYTHON \
-            --format SOURCE \
-            --overwrite \
-            notebooks/SampleNotebook.py \
-            /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
-
-      - name: Run notebook on Databricks
-        uses: databricks/run-notebook@v0
-        with:
-          databricks-host: https://adb-1808066787890886.6.azuredatabricks.net
-          databricks-token: ${{ secrets.DATABRICKS_TOKEN }}
-          workspace-notebook-path: /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
-          existing-cluster-id: 0808-100918-h03sh6sb
+# Show data
+df.show()
