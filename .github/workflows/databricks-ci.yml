@@ -2,7 +2,7 @@ name: Run Databricks Notebook
 
 on:
   push:
-    branches: [ main ]  # or use 'master' if your repo uses that
+    branches: [ main ]  
 
 jobs:
   run-notebook:
