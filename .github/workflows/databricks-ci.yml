@@ -19,3 +19,4 @@ jobs:
           databricks-token: ${{ secrets.DATABRICKS_TOKEN }}
           workspace-notebook-path: /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
           existing-cluster-id: 0808-100918-h03sh6sb
+          debug: true
