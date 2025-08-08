@@ -1,64 +1,42 @@
-# Databricks notebook source
-# Sample data
-data = [("Raj", 24), ("priya", 30), ("supra", 29)]
+name: CI to Databricks
 
-# Create a DataFrame
-df = spark.createDataFrame(data, ["Name", "Age"])
+on:
+  push:
+    branches: [main]  # or your branch name
 
-# Show data
-df.show()
+jobs:
+  deploy-and-run:
+    runs-on: ubuntu-latest
 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-# COMMAND ----------
+      - name: Set up Databricks CLI
+        run: pip install databricks-cli
 
-# Load the CSV into a DataFrame
-df = spark.read.option("header", True).csv("/FileStore/tables/dirty_employees.csv")
+      - name: Configure Databricks CLI
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          databricks configure --token <<EOF
+          https://adb-1808066787890886.6.azuredatabricks.net
+          $DATABRICKS_TOKEN
+          EOF
 
-# Show the raw dirty data
-df.show(truncate=False)
+      - name: Upload latest SampleNotebook.py to Databricks
+        run: |
+          databricks workspace import \
+            --language PYTHON \
+            --format SOURCE \
+            --overwrite \
+            notebooks/SampleNotebook.py \
+            /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
 
-
-# COMMAND ----------
-
-from pyspark.sql.functions import col, trim, lower, regexp_replace
-
-# Step 1: Load CSV into DataFrame
-df = spark.read.option("header", True).csv("/FileStore/tables/dirty_employees.csv")
-
-# Step 2: Show raw dirty data
-print("Raw Data:")
-df.show(truncate=False)
-
-# Step 3: Drop duplicate rows
-df = df.dropDuplicates()
-
-# Step 4: Trim whitespaces from all string columns
-for column in df.columns:
-    df = df.withColumn(column, trim(col(column)))
-
-# Step 5: Handle missing/null values (replace with default or drop)
-df = df.na.fill({
-    "age": "0",
-    "salary": "0",
-    "department": "Unknown"
-})
-
-# Step 6: Standardize case (e.g. lowercase names or departments)
-df = df.withColumn("name", lower(col("name")))
-df = df.withColumn("department", lower(col("department")))
-
-# Step 7: Remove unwanted characters (e.g. ₹, $, commas)
-df = df.withColumn("salary", regexp_replace(col("salary"), "[^0-9.]", ""))
-
-# Step 8: Convert columns to appropriate types (if needed)
-from pyspark.sql.types import IntegerType, DoubleType
-
-df = df.withColumn("age", col("age").cast(IntegerType()))
-df = df.withColumn("salary", col("salary").cast(DoubleType()))
-
-# Final cleaned data
-print("Cleaned Data:")
-df.show(truncate=False)
-
-# Optional: Print schema
-df.printSchema()
+      - name: Run notebook on Databricks
+        uses: databricks/run-notebook@v0
+        with:
+          databricks-host: https://adb-1808066787890886.6.azuredatabricks.net
+          databricks-token: ${{ secrets.DATABRICKS_TOKEN }}
+          workspace-notebook-path: /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
+          existing-cluster-id: 0808-100918-h03sh6sb
