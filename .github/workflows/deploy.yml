@@ -1,42 +1,61 @@
-name: CI to Databricks
+name: Sync repo to Databricks (per branch)
 
 on:
   push:
-    branches: [main]  # or your branch name
+    branches: [dev, ppe, main]
+    paths:
+      - "**.py"
+      - "**.ipynb"
+      - "Notebooks/**"
+      - "!**/.git/**"
+  workflow_dispatch:
+    inputs:
+      target: { description: "dev|ppe|prod", required: true, default: "dev" }
+      version: { description: "Commit SHA/tag (optional)", required: false }
 
 jobs:
-  deploy-and-run:
+  sync:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    # Map branch -> GitHub Environment for env-scoped secrets
+    environment: ${{ github.ref_name == 'main' && 'prod' || (github.ref_name == 'ppe' && 'ppe' || 'dev') }}
 
-      - name: Set up Databricks CLI
+    env:
+      TARGET: ${{ github.event.inputs.target || (github.ref_name == 'main' && 'prod' || (github.ref_name == 'ppe' && 'ppe' || 'dev')) }}
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      DEST_DEV:  /Repos/_ci/deployed@dev
+      DEST_PPE:  /Repos/_ci/deployed@ppe
+      DEST_PROD: /Repos/_ci/deployed@prod
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.version || github.sha }}
+
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+
+      - name: Install Databricks CLI
         run: pip install databricks-cli
 
-      - name: Configure Databricks CLI
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      - name: Pick destination path
+        id: choose
         run: |
-          databricks configure --token <<EOF
-          https://adb-1808066787890886.6.azuredatabricks.net
-          $DATABRICKS_TOKEN
-          EOF
+          if [ "${TARGET}" = "prod" ]; then
+            echo "DEST=${DEST_PROD}" >> $GITHUB_OUTPUT
+          elif [ "${TARGET}" = "ppe" ]; then
+            echo "DEST=${DEST_PPE}" >> $GITHUB_OUTPUT
+          else
+            echo "DEST=${DEST_DEV}" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Upload latest SampleNotebook.py to Databricks
+      - name: Make sure destination exists
+        run: databricks workspace mkdirs "${{ steps.choose.outputs.DEST }}"
+
+      - name: Sync Notebooks -> workspace
         run: |
-          databricks workspace import \
-          --language PYTHON \
-          --format SOURCE \
-          --overwrite \
-          SampleNotebook.py \
-          /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
-
-      - name: Run notebook on Databricks
-        uses: databricks/run-notebook@v0
-        with:
-          databricks-host: https://adb-1808066787890886.6.azuredatabricks.net
-          databricks-token: ${{ secrets.DATABRICKS_TOKEN }}
-          workspace-notebook-path: /Workspace/Users/rajvardhanshinde3003@gmail.com/SampleNotebook
-          existing-cluster-id: 0808-100918-h03sh6sb
+          databricks workspace import-dir \
+            --overwrite \
+            --format AUTO \
+            Notebooks "${{ steps.choose.outputs.DEST }}/Notebooks"
