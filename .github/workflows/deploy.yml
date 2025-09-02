@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   sync:
-    # dev branch → dev environment, ppe → ppe, main → prod
+    # dev → dev environment, ppe → ppe, main → prod (for env-scoped secrets)
     environment: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
     runs-on: ubuntu-latest
 
@@ -50,17 +50,23 @@ jobs:
           DEST_PATH: ${{ secrets.DEST_PATH }}
         run: |
           set -euo pipefail
+
           if [ ! -d "Notebooks" ]; then
             echo "No Notebooks/ folder in repo. Nothing to sync."
             exit 0
           fi
 
-          # Make sure destination exists (workspace path, not URL, not DBFS)
+          echo "Importing files from Notebooks"
           databricks workspace mkdirs "${DEST_PATH}"
-
-          # Import notebooks (overwrite existing)
           databricks workspace import-dir --overwrite "Notebooks" "${DEST_PATH}"
 
-          # Optional: list destination to verify
-          databricks workspace ls "${DEST_PATH}"
+      # Verify contents (new CLI uses `list`, not `ls`)
+      - name: Verify destination
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DEST_PATH: ${{ secrets.DEST_PATH }}
+        run: |
+          set -euo pipefail
+          databricks workspace list "${DEST_PATH}" -o json || databricks workspace list --path "${DEST_PATH}" -o json
           echo "✅ Synced Notebooks → ${DEST_PATH}"
