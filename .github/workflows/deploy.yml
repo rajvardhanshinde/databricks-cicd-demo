@@ -1,61 +1,49 @@
-name: Sync repo to Databricks (per branch)
+name: Sync Notebooks → Databricks Workspace (per branch)
 
 on:
   push:
     branches: [dev, ppe, main]
     paths:
-      - "**.py"
-      - "**.ipynb"
       - "Notebooks/**"
-      - "!**/.git/**"
-  workflow_dispatch:
-    inputs:
-      target: { description: "dev|ppe|prod", required: true, default: "dev" }
-      version: { description: "Commit SHA/tag (optional)", required: false }
+      - "**/*.ipynb"
+      - "**/*.py"
+  workflow_dispatch: {}
+
+concurrency:
+  group: "dbx-sync-${{ github.ref_name }}"
+  cancel-in-progress: true
 
 jobs:
   sync:
+    # Map branch -> environment name so we can use env-scoped secrets
+    environment: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
     runs-on: ubuntu-latest
-
-    # Map branch -> GitHub Environment for env-scoped secrets
-    environment: ${{ github.ref_name == 'main' && 'prod' || (github.ref_name == 'ppe' && 'ppe' || 'dev') }}
-
-    env:
-      TARGET: ${{ github.event.inputs.target || (github.ref_name == 'main' && 'prod' || (github.ref_name == 'ppe' && 'ppe' || 'dev')) }}
-      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-      DEST_DEV:  /Repos/_ci/deployed@dev
-      DEST_PPE:  /Repos/_ci/deployed@ppe
-      DEST_PROD: /Repos/_ci/deployed@prod
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.version || github.sha }}
 
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11" }
+        with:
+          python-version: "3.11"
 
       - name: Install Databricks CLI
         run: pip install databricks-cli
 
-      - name: Pick destination path
-        id: choose
+      - name: Import Notebooks to workspace folder
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DEST_PATH: ${{ secrets.DEST_PATH }}   # workspace folder where you want files
         run: |
-          if [ "${TARGET}" = "prod" ]; then
-            echo "DEST=${DEST_PROD}" >> $GITHUB_OUTPUT
-          elif [ "${TARGET}" = "ppe" ]; then
-            echo "DEST=${DEST_PPE}" >> $GITHUB_OUTPUT
-          else
-            echo "DEST=${DEST_DEV}" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          if [ ! -d "Notebooks" ]; then
+            echo "No Notebooks/ folder in repo. Nothing to sync."
+            exit 0
           fi
-
-      - name: Make sure destination exists
-        run: databricks workspace mkdirs "${{ steps.choose.outputs.DEST }}"
-
-      - name: Sync Notebooks -> workspace
-        run: |
+          echo "Destination: ${DEST_PATH}"
+          databricks workspace mkdirs "${DEST_PATH}"
           databricks workspace import-dir \
             --overwrite \
             --format AUTO \
-            Notebooks "${{ steps.choose.outputs.DEST }}/Notebooks"
+            "Notebooks" "${DEST_PATH}"
+          echo "✅ Synced Notebooks → ${DEST_PATH}"
