@@ -15,35 +15,52 @@ concurrency:
 
 jobs:
   sync:
-    # Map branch -> environment name so we can use env-scoped secrets
+    # dev branch → dev environment, ppe → ppe, main → prod
     environment: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      # Install the NEW Databricks CLI
+      - name: Install Databricks CLI (new)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          which databricks
+          databricks --version
 
-      - name: Install Databricks CLI
-        run: pip install databricks-cli
-
-      - name: Import Notebooks to workspace folder
+      # Fail fast if any secret is missing
+      - name: Validate secrets
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DEST_PATH: ${{ secrets.DEST_PATH }}   # workspace folder where you want files
+          DEST_PATH: ${{ secrets.DEST_PATH }}
+        run: |
+          set -euo pipefail
+          : "${DATABRICKS_HOST:?Missing DATABRICKS_HOST}"
+          : "${DATABRICKS_TOKEN:?Missing DATABRICKS_TOKEN}"
+          : "${DEST_PATH:?Missing DEST_PATH}"
+          echo "Destination: ${DEST_PATH}"
+
+      # Sync the Notebooks folder into your workspace path
+      - name: Import Notebooks to Databricks workspace
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DEST_PATH: ${{ secrets.DEST_PATH }}
         run: |
           set -euo pipefail
           if [ ! -d "Notebooks" ]; then
             echo "No Notebooks/ folder in repo. Nothing to sync."
             exit 0
           fi
-          echo "Destination: ${DEST_PATH}"
+
+          # Make sure destination exists (workspace path, not URL, not DBFS)
           databricks workspace mkdirs "${DEST_PATH}"
-          databricks workspace import-dir \
-            --overwrite \
-            --format AUTO \
-            "Notebooks" "${DEST_PATH}"
+
+          # Import notebooks (overwrite existing)
+          databricks workspace import-dir --overwrite "Notebooks" "${DEST_PATH}"
+
+          # Optional: list destination to verify
+          databricks workspace ls "${DEST_PATH}"
           echo "✅ Synced Notebooks → ${DEST_PATH}"
