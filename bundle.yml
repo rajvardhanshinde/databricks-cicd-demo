@@ -2,25 +2,16 @@ bundle:
   name: "my-databricks-project"
 
 variables:
-  # Base path under /Workspace in each Databricks workspace
   root_path:
     default: "/Shared/my-databricks-project"
 
 resources:
-  files:
-    notebooks:                     # any name for this file resource
-      source: ./Notebooks          # folder in your repo
-      # Auto-place under dev/ppe/prod using bundle.target
+  files:                      # requires unified CLI (0.205+)
+    notebooks:
+      source: ./Notebooks
       path: "${var.root_path}/${bundle.target}/Notebooks"
 
 targets:
-  dev:
-    workspace:
-      # Optional (path above is absolute already) – kept for clarity
-      root_path: "${var.root_path}/dev"
-  ppe:
-    workspace:
-      root_path: "${var.root_path}/ppe"
-  prod:
-    workspace:
-      root_path: "${var.root_path}/prod"
+  dev:  { workspace: {} }
+  ppe:  { workspace: {} }
+  prod: { workspace: {} }
