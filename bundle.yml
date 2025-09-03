@@ -2,12 +2,13 @@ bundle:
   name: "my-databricks-project"
 
 variables:
-  root_path: "/Shared/my-databricks-project"  # default, overridden by workflow
+  root_path:
+    default: "/Shared/my-databricks-project"
 
 resources:
-  directories:
+  paths:
     - source: ./Notebooks
-      path: "${var.root_path}/Notebooks"
+      destination: "${var.root_path}/Notebooks"
 
 targets:
   dev:
