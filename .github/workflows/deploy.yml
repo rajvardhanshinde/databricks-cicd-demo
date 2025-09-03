@@ -1,4 +1,4 @@
-name: Sync Notebooks → Databricks Workspace (per branch)
+name: Deploy Databricks Bundle
 
 on:
   push:
@@ -7,48 +7,41 @@ on:
       - "Notebooks/**"
       - "**/*.ipynb"
       - "**/*.py"
-  workflow_dispatch: {}
+      - "bundle.yml"
+  workflow_dispatch: {}   # allow manual runs (e.g., hotfix/rollback)
 
 concurrency:
-  group: "dbx-sync-${{ github.ref_name }}"
+  group: "dbx-bundle-${{ github.ref_name }}"
   cancel-in-progress: true
 
 jobs:
-  sync:
+  deploy:
+    # main -> prod environment; otherwise use the branch name (dev/ppe)
     environment: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
     runs-on: ubuntu-latest
+    env:
+      # These are read from the selected GitHub Environment (dev/ppe/prod)
+      DATABRICKS_HOST:  ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      TARGET: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Databricks CLI
+      - name: Install Databricks CLI (new)
         run: |
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
           databricks --version
 
-      - name: Deploy Databricks Asset Bundle
+      - name: Sanity check (identity & workspace)
         run: |
-          set -euo pipefail
+          echo "Target: $TARGET"
+          echo "Host:   $DATABRICKS_HOST"
+          databricks current-user me -o json
+          databricks workspace list / -o json
 
-          if [ "${{ github.ref_name }}" == "main" ]; then
-            TARGET_ENV="prod"
-            export DATABRICKS_HOST="${{ secrets.DATABRICKS_HOST_PROD }}"
-            export DATABRICKS_TOKEN="${{ secrets.DATABRICKS_TOKEN_PROD }}"
-            DEST_PATH="${{ secrets.DEST_PATH_PROD }}"
-          elif [ "${{ github.ref_name }}" == "ppe" ]; then
-            TARGET_ENV="ppe"
-            export DATABRICKS_HOST="${{ secrets.DATABRICKS_HOST_PPE }}"
-            export DATABRICKS_TOKEN="${{ secrets.DATABRICKS_TOKEN_PPE }}"
-            DEST_PATH="${{ secrets.DEST_PATH_PPE }}"
-          else
-            TARGET_ENV="dev"
-            export DATABRICKS_HOST="${{ secrets.DATABRICKS_HOST_DEV }}"
-            export DATABRICKS_TOKEN="${{ secrets.DATABRICKS_TOKEN_DEV }}"
-            DEST_PATH="${{ secrets.DEST_PATH_DEV }}"
-          fi
+      - name: Validate bundle
+        run: databricks bundle validate -t "$TARGET"
 
-          echo "Validating bundle for ${TARGET_ENV}"
-          databricks bundle validate -t ${TARGET_ENV} --var="root_path=${DEST_PATH}"
-
-          echo "Deploying bundle to ${TARGET_ENV} target"
-          databricks bundle deploy -t ${TARGET_ENV} --var="root_path=${DEST_PATH}"
+      - name: Deploy bundle
+        run: databricks bundle deploy -t "$TARGET"
