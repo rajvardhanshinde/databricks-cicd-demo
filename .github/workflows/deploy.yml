@@ -8,7 +8,7 @@ on:
       - "**/*.ipynb"
       - "**/*.py"
       - "bundle.yml"
-  workflow_dispatch: {}   # allow manual runs (e.g., hotfix/rollback)
+  workflow_dispatch: {}
 
 concurrency:
   group: "dbx-bundle-${{ github.ref_name }}"
@@ -16,11 +16,9 @@ concurrency:
 
 jobs:
   deploy:
-    # main -> prod environment; otherwise use the branch name (dev/ppe)
     environment: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
     runs-on: ubuntu-latest
     env:
-      # These are read from the selected GitHub Environment (dev/ppe/prod)
       DATABRICKS_HOST:  ${{ secrets.DATABRICKS_HOST }}
       DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
       TARGET: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
@@ -28,20 +26,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Databricks CLI (new)
+      # 1) Ensure NO old pip CLI is present
+      - name: Remove old pip databricks-cli if any
         run: |
-          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
-          databricks --version
+          python -m pip uninstall -y databricks-cli || true
+          pip uninstall -y databricks-cli || true
+          rm -f ~/.local/bin/databricks || true
+          sudo rm -f /usr/local/bin/databricks || true
+          hash -r || true
 
+      # 2) Install the *unified* Databricks CLI
+      - name: Install unified Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sudo sh
+          databricks --version
+          type -a databricks
+          file "$(command -v databricks)"
+
+      # 3) Fail fast if version < 0.205 (files resource needs this)
+      - name: Enforce minimum CLI version
+        run: |
+          v="$(databricks --version | awk '{print $2}')"
+          # compare 0.205.0 numerically
+          min="0.205.0"
+          if [ "$(printf '%s\n' "$min" "$v" | sort -V | head -n1)" != "$min" ]; then
+            echo "databricks CLI $v detected, which is older than required $min"; exit 1
+          fi
+
+      # 4) Sanity: show who/where we are deploying
       - name: Sanity check (identity & workspace)
         run: |
           echo "Target: $TARGET"
           echo "Host:   $DATABRICKS_HOST"
           databricks current-user me -o json
-          databricks workspace list / -o json
+          databricks workspace list / -o json | head -n 50
 
+      # 5) Validate & deploy (explicitly pass bundle file just in case)
       - name: Validate bundle
-        run: databricks bundle validate -t "$TARGET"
+        run: databricks bundle validate --bundle-file bundle.yml --target "$TARGET"
 
       - name: Deploy bundle
-        run: databricks bundle deploy -t "$TARGET"
+        run: databricks bundle deploy --bundle-file bundle.yml --target "$TARGET"
