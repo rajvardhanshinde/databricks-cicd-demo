@@ -2,12 +2,12 @@ bundle:
   name: "my-databricks-project"
 
 variables:
-  root_path:
-    default: "/Shared/my-databricks-project"
+  root_path: "/Shared/my-databricks-project"
 
 resources:
-  resource_files:
-    - source: ./Notebooks
+  files:
+    notebooks:                 # name of resource
+      source: ./Notebooks      # local folder in repo
       path: "${var.root_path}/Notebooks"
 
 targets:
