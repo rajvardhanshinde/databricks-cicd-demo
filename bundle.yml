@@ -5,23 +5,18 @@ bundle:
 
 resources:
   files:
-    files:
-      notebooks:
-        path: ./Notebooks/
+    - path: "./Notebooks"
 
 targets:
   dev:
-    variables:
-      workspace:
-        host: ${{ secrets.DATABRICKS_HOST_DEV }}
-        root_path: ${{ var.root_path }}
+    host: ${{ secrets.DATABRICKS_HOST_DEV }}
+    workspace:
+      root_path: ${{ var.root_path }}
   ppe:
-    variables:
-      workspace:
-        host: ${{ secrets.DATABRICKS_HOST_PPE }}
-        root_path: ${{ var.root_path }}
+    host: ${{ secrets.DATABRICKS_HOST_PPE }}
+    workspace:
+      root_path: ${{ var.root_path }}
   prod:
-    variables:
-      workspace:
-        host: ${{ secrets.DATABRICKS_HOST_PROD }}
-        root_path: ${{ var.root_path }}
+    host: ${{ secrets.DATABRICKS_HOST_PROD }}
+    workspace:
+      root_path: ${{ var.root_path }}
