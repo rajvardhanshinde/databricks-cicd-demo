@@ -29,19 +29,7 @@ jobs:
           which databricks
           databricks --version
 
-      # Fail fast if any secret is missing
-      - name: Validate secrets
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DEST_PATH: ${{ secrets.DEST_PATH }}
-        run: |
-          set -euo pipefail
-          : "${DATABRICKS_HOST:?Missing DATABRICKS_HOST}"
-          : "${DATABRICKS_TOKEN:?Missing DATABRICKS_TOKEN}"
-          : "${DEST_PATH:?Missing DEST_PATH}"
-          echo "Destination: ${DEST_PATH}"
-
+      
       # Sync the Notebooks folder into your workspace path
       - name: Import Notebooks to Databricks workspace
         env:
