@@ -6,9 +6,9 @@ variables:
     default: "/Shared/my-databricks-project"
 
 resources:
-  paths:
+  files:
     - source: ./Notebooks
-      destination: "${var.root_path}/Notebooks"
+      path: "${var.root_path}/Notebooks"
 
 targets:
   dev:
