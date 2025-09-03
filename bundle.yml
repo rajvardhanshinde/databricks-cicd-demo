@@ -1,24 +1,21 @@
-# databricks.yml
-
 bundle:
   name: "my-databricks-project"
 
+variables:
+  root_path: "/Shared/my-databricks-project"  # default, overridden by workflow
+
 resources:
-  # The 'files' key should be a list, with each item specifying a path.
-  files:
-    - path: "./Notebooks"
+  directories:
+    - source: ./Notebooks
+      path: "${var.root_path}/Notebooks"
 
 targets:
   dev:
-    # 'host' is a top-level key under the target.
-    host: ${{ secrets.DATABRICKS_HOST_DEV }}
     workspace:
-      root_path: ${{ var.root_path }}
+      root_path: "${var.root_path}/dev"
   ppe:
-    host: ${{ secrets.DATABRICKS_HOST_PPE }}
     workspace:
-      root_path: ${{ var.root_path }}
+      root_path: "${var.root_path}/ppe"
   prod:
-    host: ${{ secrets.DATABRICKS_HOST_PROD }}
     workspace:
-      root_path: ${{ var.root_path }}
+      root_path: "${var.root_path}/prod"
