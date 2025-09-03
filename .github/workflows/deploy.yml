@@ -1,3 +1,4 @@
+
 name: Sync Notebooks → Databricks Workspace (per branch)
 
 on:
@@ -15,35 +16,46 @@ concurrency:
 
 jobs:
   sync:
-    # Map branch -> environment name so we can use env-scoped secrets
+    # dev → dev environment, ppe → ppe, main → prod (for env-scoped secrets)
     environment: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      # Install the NEW Databricks CLI
+      - name: Install Databricks CLI (new)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          which databricks
+          databricks --version
 
-      - name: Install Databricks CLI
-        run: pip install databricks-cli
-
-      - name: Import Notebooks to workspace folder
+      
+      # Sync the Notebooks folder into your workspace path
+      - name: Import Notebooks to Databricks workspace
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DEST_PATH: ${{ secrets.DEST_PATH }}   # workspace folder where you want files
+          DEST_PATH: ${{ secrets.DEST_PATH }}
         run: |
           set -euo pipefail
+
           if [ ! -d "Notebooks" ]; then
             echo "No Notebooks/ folder in repo. Nothing to sync."
             exit 0
           fi
-          echo "Destination: ${DEST_PATH}"
+
+          echo "Importing files from Notebooks"
           databricks workspace mkdirs "${DEST_PATH}"
-          databricks workspace import-dir \
-            --overwrite \
-            --format AUTO \
-            "Notebooks" "${DEST_PATH}"
+          databricks workspace import-dir --overwrite "Notebooks" "${DEST_PATH}"
+
+      # Verify contents (new CLI uses `list`, not `ls`)
+      - name: Verify destination
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DEST_PATH: ${{ secrets.DEST_PATH }}
+        run: |
+          set -euo pipefail
+          databricks workspace list "${DEST_PATH}" -o json || databricks workspace list --path "${DEST_PATH}" -o json
           echo "✅ Synced Notebooks → ${DEST_PATH}"
