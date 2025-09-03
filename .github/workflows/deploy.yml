@@ -15,46 +15,37 @@ concurrency:
 
 jobs:
   sync:
-    # dev → dev environment, ppe → ppe, main → prod (for env-scoped secrets)
     environment: ${{ github.ref_name == 'main' && 'prod' || github.ref_name }}
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      # Install the NEW Databricks CLI
-      - name: Install Databricks CLI (new)
+      - name: Install Databricks CLI
         run: |
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
-          which databricks
           databricks --version
 
-      
-      # Sync the Notebooks folder into your workspace path
-      - name: Import Notebooks to Databricks workspace
+      - name: Deploy Databricks Asset Bundle
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DEST_PATH: ${{ secrets.DEST_PATH }}
         run: |
           set -euo pipefail
 
-          if [ ! -d "Notebooks" ]; then
-            echo "No Notebooks/ folder in repo. Nothing to sync."
-            exit 0
+          # Map the branch name to the correct environment and destination path secret.
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            TARGET_ENV="prod"
+            DEST_PATH="${{ secrets.DEST_PATH_PROD }}"
+          elif [ "${{ github.ref_name }}" == "ppe" ]; then
+            TARGET_ENV="ppe"
+            DEST_PATH="${{ secrets.DEST_PATH_PPE }}"
+          else
+            TARGET_ENV="dev"
+            DEST_PATH="${{ secrets.DEST_PATH_DEV }}"
           fi
 
-          echo "Importing files from Notebooks"
-          databricks workspace mkdirs "${DEST_PATH}"
-          databricks workspace import-dir --overwrite "Notebooks" "${DEST_PATH}"
+          echo "Validating bundle for ${TARGET_ENV}"
+          databricks bundle validate -t ${TARGET_ENV} --var="root_path=${DEST_PATH}"
 
-      # Verify contents (new CLI uses `list`, not `ls`)
-      - name: Verify destination
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          DEST_PATH: ${{ secrets.DEST_PATH }}
-        run: |
-          set -euo pipefail
-          databricks workspace list "${DEST_PATH}" -o json || databricks workspace list --path "${DEST_PATH}" -o json
-          echo "✅ Synced Notebooks → ${DEST_PATH}"
+          echo "Deploying bundle to ${TARGET_ENV} target"
+          databricks bundle deploy -t ${TARGET_ENV} --var="root_path=${DEST_PATH}"
