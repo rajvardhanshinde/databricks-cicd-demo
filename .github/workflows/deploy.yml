@@ -27,19 +27,23 @@ jobs:
           databricks --version
 
       - name: Deploy Databricks Asset Bundle
-        env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: |
           set -euo pipefail
 
           if [ "${{ github.ref_name }}" == "main" ]; then
             TARGET_ENV="prod"
+            export DATABRICKS_HOST="${{ secrets.DATABRICKS_HOST_PROD }}"
+            export DATABRICKS_TOKEN="${{ secrets.DATABRICKS_TOKEN_PROD }}"
             DEST_PATH="${{ secrets.DEST_PATH_PROD }}"
           elif [ "${{ github.ref_name }}" == "ppe" ]; then
             TARGET_ENV="ppe"
+            export DATABRICKS_HOST="${{ secrets.DATABRICKS_HOST_PPE }}"
+            export DATABRICKS_TOKEN="${{ secrets.DATABRICKS_TOKEN_PPE }}"
             DEST_PATH="${{ secrets.DEST_PATH_PPE }}"
           else
             TARGET_ENV="dev"
+            export DATABRICKS_HOST="${{ secrets.DATABRICKS_HOST_DEV }}"
+            export DATABRICKS_TOKEN="${{ secrets.DATABRICKS_TOKEN_DEV }}"
             DEST_PATH="${{ secrets.DEST_PATH_DEV }}"
           fi
 
