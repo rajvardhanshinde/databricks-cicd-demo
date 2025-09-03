@@ -32,7 +32,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Map the branch name to the correct environment and destination path secret.
           if [ "${{ github.ref_name }}" == "main" ]; then
             TARGET_ENV="prod"
             DEST_PATH="${{ secrets.DEST_PATH_PROD }}"
