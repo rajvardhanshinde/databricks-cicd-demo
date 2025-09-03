@@ -4,20 +4,24 @@ bundle:
   name: "my-databricks-project"
 
 resources:
-  notebooks:
-    my-notebooks:
-      path: ./Notebooks/
+  files:
+    files:
+      notebooks:
+        path: ./Notebooks/
 
 targets:
   dev:
-    host: ${{ secrets.DATABRICKS_HOST_DEV }}
-    workspace:
-      root_path: ${{ var.root_path }}
+    variables:
+      workspace:
+        host: ${{ secrets.DATABRICKS_HOST_DEV }}
+        root_path: ${{ var.root_path }}
   ppe:
-    host: ${{ secrets.DATABRICKS_HOST_PPE }}
-    workspace:
-      root_path: ${{ var.root_path }}
+    variables:
+      workspace:
+        host: ${{ secrets.DATABRICKS_HOST_PPE }}
+        root_path: ${{ var.root_path }}
   prod:
-    host: ${{ secrets.DATABRICKS_HOST_PROD }}
-    workspace:
-      root_path: ${{ var.root_path }}
+    variables:
+      workspace:
+        host: ${{ secrets.DATABRICKS_HOST_PROD }}
+        root_path: ${{ var.root_path }}
